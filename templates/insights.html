@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}决策参考 · {{ commodity or '品种' }}{% endblock %}
+{% block content %}
+<div class="panel mb-4">
+  <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <strong>决策参考 · 机构共识</strong>
+    <span class="text-muted small">面向「接下来要不要买」：按品种 + 时间段汇总多机构观点</span>
+  </div>
+  <div class="panel-body filter-bar">
+    <form class="row g-3 align-items-end" method="get">
+      <div class="col-md-3">
+        <label class="form-label">品种</label>
+        <select class="form-select" name="commodity">
+          {% for item in commodities %}
+          <option value="{{ item }}" {% if commodity == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">开始日期</label>
+        <input class="form-control" type="date" name="date_from" value="{{ filters.date_from_input }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">结束日期</label>
+        <input class="form-control" type="date" name="date_to" value="{{ filters.date_to_input }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">快捷区间</label>
+        <div class="btn-group w-100" role="group">
+          <a class="btn btn-outline-secondary btn-sm {% if not filters.preset and not filters.date_from %}active{% endif %}"
+             href="?commodity={{ commodity }}">全部</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '7d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=7d">近7日</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '14d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=14d">近14日</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '30d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=30d">近30日</a>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">生成参考</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if insight %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="label">时序加权评分</div>
+    <div class="value {% if insight.weighted_score > 0 %}text-success{% elif insight.weighted_score < 0 %}text-danger{% endif %}">
+      {{ insight.weighted_score }}
+    </div>
+    <div class="sub">近端观点权重更高（半衰期 3 天）</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">简单均值</div>
+    <div class="value">{{ insight.avg_score }}</div>
+    <div class="sub">全样本算术平均</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">趋势持续性</div>
+    <div class="value">{{ insight.persistence_days }} 日</div>
+    <div class="sub">{{ insight.persistence_label }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">近3日 vs 前段</div>
+    <div class="value">
+      {% if insight.recent_3d_score is not none %}
+        {{ insight.recent_3d_score }}
+        {% if insight.prior_score is not none %}
+          <span class="small text-muted">/ 前段 {{ insight.prior_score }}</span>
+        {% endif %}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+    <div class="sub">动量：{{ insight.momentum }} · {{ insight.momentum_detail }}</div>
+  </div>
+</div>
+
+<div class="panel mb-4 signal-panel signal-{{ insight.signal_level }}">
+  <div class="panel-body">
+    <div class="signal-title">交易决策参考</div>
+    <p class="mb-0 signal-text">{{ insight.signal }}</p>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="panel mb-4">
+      <div class="panel-header"><strong>{{ commodity }} · 日度共识评分（时序）</strong></div>
+      <div class="panel-body chart-box">
+        {% if temporal_chart %}
+          {{ temporal_chart|safe }}
+        {% else %}
+          <div class="empty-hint py-4">当前时间段内日度数据不足，无法绘制时序曲线。</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><strong>{{ commodity }} · 观点分布</strong></div>
+      <div class="panel-body chart-box">{{ distribution_chart|safe }}</div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="panel h-100">
+      <div class="panel-header"><strong>多空机构一览</strong></div>
+      <div class="panel-body">
+        <div class="mb-3">
+          <div class="small text-muted mb-1">偏多 / 看涨</div>
+          {% if insight.bullish_brokers %}
+            {% for name in insight.bullish_brokers %}
+            <span class="badge text-bg-success me-1 mb-1">{{ name }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">暂无</span>
+          {% endif %}
+        </div>
+        <div>
+          <div class="small text-muted mb-1">偏空 / 看跌</div>
+          {% if insight.bearish_brokers %}
+            {% for name in insight.bearish_brokers %}
+            <span class="badge text-bg-danger me-1 mb-1">{{ name }}</span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">暂无</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel mb-4">
+  <div class="panel-header"><strong>近期机构观点明细</strong></div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle data-table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>机构</th>
+          <th>观点</th>
+          <th>来源</th>
+          <th>摘要</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in insight.broker_views %}
+        <tr>
+          <td>{{ row.publish_date | format_date }}</td>
+          <td><strong>{{ row.broker }}</strong></td>
+          <td><span class="badge text-bg-{{ trend_badge.get(row.trend, 'secondary') }}">{{ row.trend }}</span></td>
+          <td><span class="source-tag {% if row.source == 'llm' %}llm{% endif %}">{{ row.source }}</span></td>
+          <td class="text-truncate text-muted" style="max-width:360px" title="{{ row.summary }}">{{ row.summary or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info border-0 rounded-3">
+  当前品种/时间段内暂无已识别趋势的数据。可先调整日期范围，或在列表页查看「未知原因」并重新导入。
+</div>
+{% endif %}
+
+<div class="panel innovation-panel">
+  <div class="panel-header"><strong>本系统差异化能力</strong></div>
+  <div class="panel-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="innovation-item">
+          <strong>多格式正文恢复</strong>
+          <p class="mb-0 small text-muted">不仅读 HTML 文字层，还对 PDF 乱码、券商 PNG 长图做 OCR 分块识别，减少「有报告无正文」。</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="innovation-item">
+          <strong>规则 + AI 双引擎</strong>
+          <p class="mb-0 small text-muted">优先规则抽取「核心观点 / 分维度标签」，不确定时走文华 LLM；每条未知可追溯原因与原始文件路径。</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="innovation-item">
+          <strong>多机构横向共识</strong>
+          <p class="mb-0 small text-muted">不是单篇摘要，而是把 dozens 家期货公司观点聚合成评分、共识度与动量，直接服务买卖决策。</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="innovation-item">
+          <strong>时序加权共识</strong>
+          <p class="mb-0 small text-muted">近期研报权重更高，并追踪日度评分曲线、趋势持续天数与近3日动量，避免「把一个月前的观点当今天用」。</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="innovation-item">
+          <strong>空壳页自动诊断</strong>
+          <p class="mb-0 small text-muted">502/空壳 HTML 会标注「采集失败」而非误判为「无观点」；可解析 CMS id 的页面支持从 btqh 自动补拉正文。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

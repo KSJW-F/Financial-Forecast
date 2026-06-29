@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}趋势图表 - {{ commodity }}{% endblock %}
+{% block content %}
+<div class="panel mb-4">
+  <div class="panel-header"><strong>品种趋势分析</strong></div>
+  <div class="panel-body filter-bar">
+    <form class="row g-3 align-items-end" method="get">
+      <div class="col-md-3">
+        <label class="form-label">选择品种</label>
+        <select class="form-select" name="commodity">
+          {% for item in commodities %}
+          <option value="{{ item }}" {% if commodity == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">开始日期</label>
+        <input class="form-control" type="date" name="date_from" value="{{ filters.date_from_input }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">结束日期</label>
+        <input class="form-control" type="date" name="date_to" value="{{ filters.date_to_input }}">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">查看</button>
+      </div>
+      <div class="col-md-3">
+        <div class="btn-group w-100" role="group">
+          <a class="btn btn-outline-secondary btn-sm {% if not filters.preset and not filters.date_from %}active{% endif %}"
+             href="?commodity={{ commodity }}">全部</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '7d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=7d">近7日</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '14d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=14d">近14日</a>
+          <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '30d' %}active{% endif %}"
+             href="?commodity={{ commodity }}&preset=30d">近30日</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if not has_data %}
+<div class="alert alert-info border-0 rounded-3">当前品种暂无可用图表数据，请换一个品种或先完成数据导入。</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="panel mb-4">
+      <div class="panel-header"><strong>{{ commodity }} · 趋势评分走势</strong></div>
+      <div class="panel-body chart-box">{{ trend_chart|safe }}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><strong>{{ commodity }} · 观点分布</strong></div>
+      <div class="panel-body chart-box">{{ distribution_chart|safe }}</div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel">
+      <div class="panel-header"><strong>最近记录</strong></div>
+      <div class="list-group list-group-flush">
+        {% for row in table_rows %}
+        <div class="list-group-item">
+          <div class="small text-muted">{{ row.publish_date }} · {{ row.broker }}</div>
+          <div class="mt-1"><span class="badge text-bg-secondary trend-badge">评分 {{ row.score }}</span></div>
+        </div>
+        {% else %}
+        <div class="list-group-item text-muted">暂无数据</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

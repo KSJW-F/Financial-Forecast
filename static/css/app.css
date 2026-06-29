@@ -1,0 +1,240 @@
+:root {
+  --primary: #0f4c81;
+  --primary-light: #1b6ca8;
+  --bg: #eef3f9;
+  --card: #ffffff;
+  --text: #1a2b3c;
+  --muted: #6c7a89;
+  --border: #e4ebf3;
+  --success: #1f9d55;
+  --danger: #dc3545;
+  --warning: #f0ad4e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.app-navbar {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  box-shadow: 0 4px 20px rgba(15, 76, 129, 0.25);
+}
+
+.app-navbar .navbar-brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nav-pill {
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(15, 76, 129, 0.06);
+}
+
+.stat-card .label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+.stat-card .value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card .sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.panel {
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(15, 76, 129, 0.06);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafcff;
+}
+
+.panel-body { padding: 1.25rem; }
+
+.filter-bar .form-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.data-table thead th {
+  background: #f3f7fb;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.table-row-link:hover {
+  background: #f8fbff;
+  cursor: pointer;
+}
+
+.trend-badge {
+  border-radius: 999px;
+  padding: 0.35em 0.75em;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.source-tag {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+.source-tag.llm { background: #e8f4fd; color: #0f4c81; }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 992px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+.meta-list dt {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+
+.meta-list dd {
+  font-weight: 600;
+  margin-bottom: 0.85rem;
+}
+
+.prediction-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: #fafcff;
+}
+
+.article-body {
+  max-height: 680px;
+  overflow: auto;
+  padding: 1.25rem;
+  background: #fcfdff;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.article-text {
+  white-space: pre-wrap;
+  line-height: 1.85;
+  font-size: 0.95rem;
+}
+
+.chart-box { min-height: 340px; }
+
+.pagination .page-link {
+  border-radius: 8px;
+  margin: 0 2px;
+  border-color: var(--border);
+}
+
+.page-jump-form input[type="number"] {
+  text-align: center;
+}
+
+.page-jump-form input[type="number"]::-webkit-outer-spin-button,
+.page-jump-form input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.back-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.back-link:hover { text-decoration: underline; }
+
+.signal-panel {
+  border-left: 4px solid var(--primary);
+}
+
+.signal-panel.signal-success { border-left-color: var(--success); }
+.signal-panel.signal-danger { border-left-color: var(--danger); }
+.signal-panel.signal-warning { border-left-color: var(--warning); }
+
+.signal-title {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.signal-text {
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.innovation-item {
+  background: #f8fbff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  height: 100%;
+}
+
+.innovation-panel .innovation-item strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--primary);
+}

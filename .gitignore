@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment
+.env
+
+# Local dataset (large; share via网盘/内网，勿提交 Git)
+data/*
+!data/README.md
+
+# Database
+*.db
+financial_forecast.db
+
+# Test artifacts
+_test_*
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pytest
+.pytest_cache/

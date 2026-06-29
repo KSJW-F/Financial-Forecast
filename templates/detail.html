@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ article.title }} - 研报详情{% endblock %}
+{% block content %}
+<p class="mb-3"><a class="back-link" href="{{ url_for('index') }}">&larr; 返回列表</a></p>
+
+<div class="detail-grid">
+  <div>
+    <div class="panel mb-3">
+      <div class="panel-header"><strong>文章信息</strong></div>
+      <div class="panel-body">
+        <dl class="meta-list mb-0">
+          <dt>机构</dt><dd>{{ article.broker }}</dd>
+          <dt>发布日期</dt><dd>{{ article.publish_date | format_date }}</dd>
+          <dt>文件格式</dt><dd>{{ article.file_type | upper }}</dd>
+          <dt>数据路径</dt><dd><code>data/{{ article.file_path }}</code></dd>
+          <dt>正文长度</dt><dd>{{ (article.cleaned_content or '')|length }} 字</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><strong>解析观点</strong></div>
+      <div class="panel-body">
+        {% for item in predictions %}
+        <div class="prediction-card">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge bg-light text-dark border">{{ item.commodity }}</span>
+            <span class="badge text-bg-{{ item.trend_badge }} trend-badge">{{ item.trend }}</span>
+          </div>
+          <div class="small text-muted mb-1">置信度：{{ item.confidence }} · 来源：<span class="source-tag {% if item.source == 'llm' %}llm{% endif %}">{{ item.source }}</span></div>
+          {% if item.trend == '未知' and item.unknown_reason %}
+          <div class="small mb-2">
+            <span class="text-secondary">未知原因：</span>
+            <code>{{ item.unknown_reason }}</code>
+          </div>
+          {% endif %}
+          <div>{{ item.summary or '—' }}</div>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">暂无解析结果</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <strong>{{ article.title }}</strong>
+    </div>
+    <div class="panel-body">
+      {% if article.cleaned_content and article.cleaned_content|length > 30 %}
+      <div class="article-body">
+        <div class="article-text">{{ article.cleaned_content }}</div>
+      </div>
+      {% else %}
+      <div class="empty-hint">
+        <p>正文未能完整提取</p>
+        <p class="small">常见原因：图片研报（PNG 未采集）、页面为导航壳页、PDF 字体编码异常</p>
+        <p class="small">数据路径：<code>data/{{ article.file_path }}</code></p>
+        {% if predictions and predictions[0].unknown_reason %}
+        <p class="small mt-2">未知原因：<code>{{ predictions[0].unknown_reason }}</code></p>
+        {% endif %}
+        {% if article.title %}<p class="small mt-2">标题：{{ article.title }}</p>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

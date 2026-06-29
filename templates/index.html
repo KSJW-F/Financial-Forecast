@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="label">研报总数</div>
+    <div class="value">{{ stats.articles }}</div>
+    <div class="sub">已入库文章</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">已识别趋势</div>
+    <div class="value text-success">{{ stats.identified }}</div>
+    <div class="sub">规则 + AI 成功解析</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">待识别</div>
+    <div class="value text-secondary">{{ stats.unknown }}</div>
+    <div class="sub">趋势仍为未知</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">AI 参与</div>
+    <div class="value" style="color:#1b6ca8">{{ stats.llm }}</div>
+    <div class="sub">文华接口补全</div>
+  </div>
+</div>
+
+<div class="panel mb-4">
+  <div class="panel-header">
+    <strong>筛选条件</strong>
+  </div>
+  <div class="panel-body filter-bar">
+    <form class="row g-3" method="get">
+      <div class="col-md-2">
+        <label class="form-label">开始日期</label>
+        <input class="form-control" type="date" name="date_from" value="{{ filters.date_from_input }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">结束日期</label>
+        <input class="form-control" type="date" name="date_to" value="{{ filters.date_to_input }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">期货公司</label>
+        <select class="form-select" name="broker">
+          <option value="">全部</option>
+          {% for item in brokers %}
+          <option value="{{ item }}" {% if filters.broker == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">品种</label>
+        <select class="form-select" name="commodity">
+          <option value="">全部</option>
+          {% for item in commodities %}
+          <option value="{{ item }}" {% if filters.commodity == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">趋势</label>
+        <select class="form-select" name="trend">
+          <option value="">全部</option>
+          {% for item in trends %}
+          <option value="{{ item }}" {% if filters.trend == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2 d-flex align-items-end gap-2">
+        <button class="btn btn-primary flex-grow-1" type="submit">应用筛选</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">重置</a>
+      </div>
+    </form>
+    <div class="mt-2">
+      <span class="small text-muted me-2">快捷：</span>
+      <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '7d' %}active{% endif %}" href="?preset=7d">近7日</a>
+      <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '14d' %}active{% endif %}" href="?preset=14d">近14日</a>
+      <a class="btn btn-outline-secondary btn-sm {% if filters.preset == '30d' %}active{% endif %}" href="?preset=30d">近30日</a>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <strong>研报分析列表</strong>
+    <span class="text-muted small">共 {{ total }} 条 · 第 {{ page }}/{{ total_pages }} 页</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>机构</th>
+          <th>标题</th>
+          <th>日期</th>
+          <th>品种</th>
+          <th>观点</th>
+          <th>来源</th>
+          <th>摘要</th>
+          <th>未知原因</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="table-row-link" onclick="window.location='{{ url_for('article_detail', article_id=row.id) }}'">
+          <td class="text-muted">#{{ row.id }}</td>
+          <td><strong>{{ row.broker }}</strong></td>
+          <td class="text-truncate" style="max-width:240px" title="{{ row.title }}">{{ row.title }}</td>
+          <td>{{ row.publish_date | format_date }}</td>
+          <td><span class="badge bg-light text-dark border">{{ row.commodity }}</span></td>
+          <td><span class="badge text-bg-{{ row.trend_badge }} trend-badge">{{ row.trend }}</span></td>
+          <td><span class="source-tag {% if row.source == 'llm' %}llm{% endif %}">{{ row.source }}</span></td>
+          <td class="text-truncate text-muted" style="max-width:280px" title="{{ row.summary }}">{{ row.summary or '—' }}</td>
+          <td class="text-truncate small" style="max-width:220px" title="{{ row.unknown_reason or row.file_path }}">
+            {% if row.trend == '未知' %}
+              {{ row.unknown_reason or ('data/' ~ row.file_path) }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9"><div class="empty-hint">暂无数据，请先运行导入脚本</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if total_pages > 1 %}
+  <div class="panel-body border-top">
+    <nav aria-label="分页" class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+      <ul class="pagination pagination-sm mb-0 flex-wrap">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+          <a class="page-link" href="?page={{ page - 1 }}{% if query_string %}&{{ query_string }}{% endif %}">上一页</a>
+        </li>
+        {% for p in page_range %}
+          {% if p == '...' %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% else %}
+          <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}{% if query_string %}&{{ query_string }}{% endif %}">{{ p }}</a>
+          </li>
+          {% endif %}
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+          <a class="page-link" href="?page={{ page + 1 }}{% if query_string %}&{{ query_string }}{% endif %}">下一页</a>
+        </li>
+      </ul>
+      <form class="page-jump-form d-flex align-items-center gap-2" method="get">
+        <span class="small text-muted text-nowrap">跳至</span>
+        <input type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+               class="form-control form-control-sm" style="width:4.5rem" aria-label="页码">
+        <span class="small text-muted">/ {{ total_pages }}</span>
+        {% if filters.broker %}<input type="hidden" name="broker" value="{{ filters.broker }}">{% endif %}
+        {% if filters.commodity %}<input type="hidden" name="commodity" value="{{ filters.commodity }}">{% endif %}
+        {% if filters.trend %}<input type="hidden" name="trend" value="{{ filters.trend }}">{% endif %}
+        {% if filters.date_from_input %}<input type="hidden" name="date_from" value="{{ filters.date_from_input }}">{% endif %}
+        {% if filters.date_to_input %}<input type="hidden" name="date_to" value="{{ filters.date_to_input }}">{% endif %}
+        {% if filters.preset %}<input type="hidden" name="preset" value="{{ filters.preset }}">{% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-primary">跳转</button>
+      </form>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
