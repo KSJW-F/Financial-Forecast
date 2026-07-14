@@ -68,12 +68,18 @@ python app.py
 
 浏览器访问：http://127.0.0.1:5000
 
+首页为**双门牌登录**。演示账号（启动时自动写入数据库）：
+
+| 门户 | 账号 | 密码 | 用途 |
+|------|------|------|------|
+| 运营工作台 | `admin` | `admin123` | 研报分析、上传、决策参考、使用统计 |
+| 客户市场端 | `guest` | `guest123` | 市场雷达（前5/前10/全部）、品种日热度、趋势图、AI 顾问 |
+
 ## 功能说明
 
-- **研报列表**：按期货公司、品种、趋势、日期筛选，支持分页与页码跳转
-- **决策参考**：多机构共识、时序加权评分、买卖决策参考
-- **趋势图表**：按品种查看趋势评分时间序列与分布
-- **文章详情**：查看清洗后正文与解析观点、未知原因
+- **企业端**：研报分析工作台、上传入库、决策参考、登录/访问心跳统计
+- **客户端**：今日雷达（值得关注品种）、品种按日研报统计、点进原文、趋势图表、AI 顾问
+- **文章详情**：清洗后正文与解析观点（登录后两端均可打开）
 
 ## 组员常见问题
 
@@ -88,29 +94,61 @@ python app.py
 
 详见 [docs/设计文档.md](docs/设计文档.md)
 
-## AI 分析（文华接口）
+## Web 功能
 
-项目已接入公司提供的文华 AI 接口，用于**规则无法识别**时的智能补全。
+启动后访问 `http://127.0.0.1:5000`，登录后按角色分流：
+
+| 路径 | 角色 | 说明 |
+|------|------|------|
+| `/` | 公开 | 双门牌登录 |
+| `/enterprise` | 企业 | 工作台首页（数据 + 使用心跳） |
+| `/reports` | 企业 | 研报分析列表 |
+| `/upload` | 企业 | 上传 HTML/PDF/图片并入库 |
+| `/insights` | 企业 | 决策参考 |
+| `/market` | 客户 | 市场雷达（前5 / 前10 / 全部可滚动） |
+| `/market/commodity` | 客户 | 品种洞察：按日热度 + 观点列表 |
+| `/charts` | 登录 | 趋势图表 |
+| `/advisor` | 登录 | AI 决策顾问 |
+| `/article/<id>` | 登录 | 研报原文 |
+
+上传 API：`POST /api/upload`（需企业登录；multipart：`file`，可选 `broker` / `publish_date`）  
+顾问 API：`POST /api/advisor/chat`（需登录；JSON：`question`，可选 `commodity` / `date_from` / `date_to`）
+
+## AI 分析（规则 + LLM 分层）
+
+分析是**分层结合**的，不是二选一：
+
+1. **强规则**：正文有「偏多 / 操作建议 / 【交易策略】」等明确句 → 直接采用（快、稳）
+2. **LLM（文华/OpenAI）**：规则没有明确观点，或只有弱启发式时 → 调用 AI
+3. **图表启发式**：AI 不可用时，用价表涨跌/数据跟踪做兜底
+4. **未知**：正文空壳或完全无方向信息
 
 在 `.env` 中配置（或直接复制 `.env.example`）：
 
 ```env
 LLM_ENABLED=true
 LLM_PROVIDER=wenhua
+LLM_ONLY_UNKNOWN=true
 WENHUA_AI_URL=https://swarm.wenhua.com.cn/aiservice/api/ShiXi/GetContent
 ```
 
-对现有数据库中「趋势=未知」的文章调用 AI 补全（建议先小批量测试）：
+对现有「趋势=未知」调用 AI 补全（**不要加 `--no-llm`**）：
 
 ```bash
-# 先测试 20 条
+# 先测试 20 条（会走 LLM）
+python scripts/reprocess_chart_ai.py --limit 20
+
+# 或仅重算预测、不重提取
 python scripts/reprocess_predictions.py --use-llm --limit 20
 
-# 全量补全未知文章（较慢，约数小时）
-python scripts/reprocess_predictions.py --use-llm
+# 图表型早报（五矿等）
+python scripts/reprocess_chart_ai.py --chart-only --limit 20
+
+# 全量未知（较慢）
+python scripts/reprocess_chart_ai.py --limit 2000
 ```
 
-新导入数据时，若 `LLM_ENABLED=true`，会自动在规则失败后调用 AI。
+说明：之前批量重跑常用 `--no-llm` 是为了在文华断线时也能用规则/启发式；文华可用时应去掉该参数，LLM 才会真正参与。
 
 ## 测试
 
