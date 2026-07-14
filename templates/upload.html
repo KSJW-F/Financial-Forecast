@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}上传研报 · Financial Forecast{% endblock %}
+{% block content %}
+<div class="page-hero mb-4">
+  <div>
+    <div class="eyebrow">Ingest</div>
+    <h1 class="page-title">上传研报</h1>
+    <p class="page-subtitle mb-0">支持 HTML / PDF / PNG / JPG，上传后自动提取、分析并写入数据库。</p>
+  </div>
+</div>
+
+<div class="panel mb-4">
+  <div class="panel-body">
+    <form id="upload-form" class="upload-form" enctype="multipart/form-data" method="post" action="{{ url_for('upload_page') }}">
+      <div class="upload-drop" id="upload-drop">
+        <input type="file" name="file" id="file-input" accept=".html,.htm,.pdf,.png,.jpg,.jpeg,application/pdf,image/*" required>
+        <div class="upload-drop-copy">
+          <strong>拖拽文件到此处，或点击选择</strong>
+          <span>单文件不超过 25MB</span>
+        </div>
+        <div class="upload-file-name" id="file-name">未选择文件</div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-4">
+          <label class="form-label">机构名称（可选）</label>
+          <input class="form-control" type="text" name="broker" placeholder="如：瑞达期货；留空则从文件名推断">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">发布日期（可选）</label>
+          <input class="form-control" type="date" name="publish_date">
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <button class="btn btn-primary w-100" type="submit" id="upload-btn">上传并分析</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="upload-status mt-3" id="upload-status" hidden></div>
+  </div>
+</div>
+
+{% if result %}
+<div class="panel">
+  <div class="panel-header"><strong>处理结果</strong></div>
+  <div class="panel-body">
+    {% if result.ok %}
+    <p class="mb-2 text-success">{{ result.message }}</p>
+    <p class="mb-1"><strong>{{ result.title }}</strong>（{{ result.broker }}）</p>
+    {% if result.article_id %}
+    <a href="{{ url_for('article_detail', article_id=result.article_id) }}">查看详情 #{{ result.article_id }}</a>
+    {% endif %}
+    {% if result.predictions %}
+    <ul class="mt-3 mb-0">
+      {% for p in result.predictions %}
+      <li>{{ p.commodity }} · {{ p.trend }} · {{ p.source }} — {{ p.summary }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <p class="mb-0 text-danger">{{ result.message }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  const form = document.getElementById("upload-form");
+  const input = document.getElementById("file-input");
+  const nameEl = document.getElementById("file-name");
+  const drop = document.getElementById("upload-drop");
+  const status = document.getElementById("upload-status");
+  const btn = document.getElementById("upload-btn");
+
+  function showName() {
+    nameEl.textContent = input.files && input.files[0] ? input.files[0].name : "未选择文件";
+  }
+  input.addEventListener("change", showName);
+
+  ["dragenter", "dragover"].forEach((evt) => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      drop.classList.add("is-drag");
+    });
+  });
+  ["dragleave", "drop"].forEach((evt) => {
+    drop.addEventListener(evt, (e) => {
+      e.preventDefault();
+      drop.classList.remove("is-drag");
+    });
+  });
+  drop.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      input.files = e.dataTransfer.files;
+      showName();
+    }
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!input.files || !input.files[0]) return;
+    status.hidden = false;
+    status.className = "upload-status mt-3";
+    status.textContent = "正在上传并分析，请稍候…";
+    btn.disabled = true;
+    try {
+      const res = await fetch("{{ url_for('api_upload') }}", {
+        method: "POST",
+        body: new FormData(form),
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        status.classList.add("is-error");
+        status.textContent = data.message || "上传失败";
+      } else {
+        status.classList.add("is-ok");
+        const preds = (data.predictions || [])
+          .map((p) => `${p.commodity} ${p.trend}`)
+          .join(" · ");
+        status.innerHTML =
+          `<strong>${data.message}</strong><br>${data.title || ""}` +
+          (preds ? `<br>${preds}` : "") +
+          (data.detail_url
+            ? `<br><a href="${data.detail_url}">查看详情</a>`
+            : "");
+      }
+    } catch (err) {
+      status.classList.add("is-error");
+      status.textContent = "网络或服务器错误：" + err;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

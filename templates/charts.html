@@ -1,8 +1,16 @@
 {% extends "base.html" %}
 {% block title %}趋势图表 - {{ commodity }}{% endblock %}
 {% block content %}
+<div class="page-hero mb-4">
+  <div>
+    <div class="eyebrow">Market Intelligence</div>
+    <h1 class="page-title">品种趋势分析</h1>
+    <p class="page-subtitle mb-0">跨机构观点评分 · 时序对比 · 0 分表示中性/震荡，不是缺失</p>
+  </div>
+</div>
+
 <div class="panel mb-4">
-  <div class="panel-header"><strong>品种趋势分析</strong></div>
+  <div class="panel-header"><strong>筛选条件</strong></div>
   <div class="panel-body filter-bar">
     <form class="row g-3 align-items-end" method="get">
       <div class="col-md-3">
@@ -37,6 +45,7 @@
         </div>
       </div>
     </form>
+    <div class="score-legend mt-3">{{ score_legend }}</div>
   </div>
 </div>
 
@@ -56,16 +65,27 @@
     </div>
   </div>
   <div class="col-lg-4">
-    <div class="panel">
-      <div class="panel-header"><strong>最近记录</strong></div>
-      <div class="list-group list-group-flush">
+    <div class="panel recent-panel">
+      <div class="panel-header">
+        <strong>最近记录</strong>
+        <span class="text-muted small">{{ table_rows|length }} 条</span>
+      </div>
+      <div class="recent-scroll">
         {% for row in table_rows %}
-        <div class="list-group-item">
-          <div class="small text-muted">{{ row.publish_date }} · {{ row.broker }}</div>
-          <div class="mt-1"><span class="badge text-bg-secondary trend-badge">评分 {{ row.score }}</span></div>
+        <div class="recent-item">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="recent-broker">{{ row.broker }}</div>
+              <div class="small text-muted">{{ row.publish_date }}</div>
+            </div>
+            <div class="text-end">
+              <span class="badge text-bg-{{ row.score_badge }} trend-badge">{{ row.trend_label }}</span>
+              <div class="score-num mt-1">{{ row.score }}</div>
+            </div>
+          </div>
         </div>
         {% else %}
-        <div class="list-group-item text-muted">暂无数据</div>
+        <div class="empty-hint py-4">暂无数据</div>
         {% endfor %}
       </div>
     </div>

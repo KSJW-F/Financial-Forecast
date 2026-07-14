@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}市场雷达 · Financial Forecast{% endblock %}
+{% block content %}
+<div class="sys-page-head">
+  <div>
+    <h1>市场雷达</h1>
+    <p>全部具体品种按机构共识加权评分排序。快捷区间相对库内最新研报日期计算（非日历今天）。</p>
+  </div>
+  <div class="sys-page-actions seg">
+    <a class="{% if top_mode == '5' %}on{% endif %}" href="{{ url_for('market_home', top=5, preset=filters.preset) }}">前 5</a>
+    <a class="{% if top_mode == '10' %}on{% endif %}" href="{{ url_for('market_home', top=10, preset=filters.preset) }}">前 10</a>
+    <a class="{% if top_mode == 'all' %}on{% endif %}" href="{{ url_for('market_home', top='all', preset=filters.preset) }}">全部</a>
+  </div>
+</div>
+
+<form class="toolbar" method="get">
+  <input type="hidden" name="top" value="{{ top_mode }}">
+  <label>
+    <span>区间</span>
+    <select name="preset" onchange="this.form.submit()">
+      <option value="" {% if not filters.preset %}selected{% endif %}>全部</option>
+      <option value="7d" {% if filters.preset == '7d' %}selected{% endif %}>近 7 日{% if filters.data_anchor %}（至 {{ filters.data_anchor | format_date }}）{% endif %}</option>
+      <option value="14d" {% if filters.preset == '14d' %}selected{% endif %}>近 14 日{% if filters.data_anchor %}（至 {{ filters.data_anchor | format_date }}）{% endif %}</option>
+      <option value="30d" {% if filters.preset == '30d' %}selected{% endif %}>近 30 日{% if filters.data_anchor %}（至 {{ filters.data_anchor | format_date }}）{% endif %}</option>
+    </select>
+  </label>
+  <label>
+    <span>品种</span>
+    <select onchange="if(this.value) location.href='{{ url_for('market_commodity') }}?commodity='+encodeURIComponent(this.value)">
+      <option value="">跳转到品种…</option>
+      {% for item in commodities %}
+      <option value="{{ item }}">{{ item }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="toolbar-spacer"></div>
+  <a class="btn-sys ghost" href="{{ url_for('charts') }}">趋势图</a>
+  <a class="btn-sys ghost" href="{{ url_for('advisor_page') }}">AI 顾问</a>
+</form>
+
+{% if radar %}
+<section class="sys-block">
+  <header class="sys-block-head">
+    <h2>
+      {% if top_mode == 'all' %}全部品种排名 · {{ radar|length }} 个
+      {% else %}关注榜 · Top {{ top_n }}
+      {% endif %}
+    </h2>
+    <span class="sys-muted">评分由高到低{% if top_mode == 'all' %} · 表格内滚动{% endif %}</span>
+  </header>
+  <div class="rank-scroll {% if top_mode == 'all' %}is-scroll{% endif %}">
+    <table class="sys-table rank-table">
+      <thead>
+        <tr>
+          <th style="width:4rem">排名</th>
+          <th>品种</th>
+          <th>档位</th>
+          <th>加权评分</th>
+          <th>观点数</th>
+          <th>动量</th>
+          <th>主导观点</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in radar %}
+        <tr class="tone-{{ item.tone }}">
+          <td class="rank-cell">{{ loop.index }}</td>
+          <td class="name-cell">{{ item.commodity }}</td>
+          <td><span class="stance-tag tone-{{ item.tone }}">{{ item.stance }}</span></td>
+          <td class="mono">{{ item.weighted_score }}</td>
+          <td class="mono">{{ item.identified_reports }}</td>
+          <td>{{ item.momentum }}</td>
+          <td>{{ item.consensus_trend }} · {{ item.consensus_pct }}%</td>
+          <td><a class="table-link" href="{{ url_for('market_commodity', commodity=item.commodity, preset=filters.preset) }}">明细</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% else %}
+<section class="sys-block">
+  <p class="sys-empty">当前区间暂无足够品种数据，请调整区间或联系运营导入研报。</p>
+</section>
+{% endif %}
+{% endblock %}

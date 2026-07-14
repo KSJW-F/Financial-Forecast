@@ -3,24 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}AI 金融报告分析系统{% endblock %}</title>
+  <title>{% block title %}Financial Forecast{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
 </head>
-<body>
-  <nav class="navbar navbar-dark app-navbar mb-4 py-3">
-    <div class="container">
-      <span class="navbar-brand mb-0">AI 金融报告分析 · 市场走势</span>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-light nav-pill {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">研报列表</a>
-        <a class="btn btn-outline-light nav-pill {% if request.endpoint == 'insights' %}active{% endif %}" href="{{ url_for('insights') }}">决策参考</a>
-        <a class="btn btn-light nav-pill {% if request.endpoint == 'charts' %}active{% endif %}" href="{{ url_for('charts') }}">趋势图表</a>
+<body class="{% block body_class %}{% endblock %} {% if is_enterprise %}role-enterprise{% elif is_client %}role-client{% endif %}">
+  <div class="app-shell">
+    {% if current_user %}
+    <header class="sys-header">
+      <div class="sys-header-inner">
+        <a class="sys-brand" href="{% if is_enterprise %}{{ url_for('enterprise_home') }}{% else %}{{ url_for('market_home') }}{% endif %}">
+          <span class="sys-brand-mark">FF</span>
+          <span class="sys-brand-text">
+            <span class="sys-brand-name">Financial Forecast</span>
+            <span class="sys-brand-role">{% if is_enterprise %}运营工作台{% else %}客户市场端{% endif %}</span>
+          </span>
+        </a>
+        <nav class="sys-nav" aria-label="主导航">
+          {% if is_enterprise %}
+            <a class="{% if request.endpoint == 'enterprise_home' %}active{% endif %}" href="{{ url_for('enterprise_home') }}">概览</a>
+            <a class="{% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">研报库</a>
+            <a class="{% if request.endpoint == 'insights' %}active{% endif %}" href="{{ url_for('insights') }}">共识分析</a>
+            <a class="{% if request.endpoint == 'upload_page' %}active{% endif %}" href="{{ url_for('upload_page') }}">上传</a>
+            <a class="{% if request.endpoint == 'charts' %}active{% endif %}" href="{{ url_for('charts') }}">趋势质检</a>
+          {% else %}
+            <a class="{% if request.endpoint == 'market_home' %}active{% endif %}" href="{{ url_for('market_home') }}">市场雷达</a>
+            <a class="{% if request.endpoint == 'market_commodity' %}active{% endif %}" href="{{ url_for('market_commodity') }}">品种明细</a>
+            <a class="{% if request.endpoint == 'charts' %}active{% endif %}" href="{{ url_for('charts') }}">趋势图</a>
+            <a class="{% if request.endpoint == 'advisor_page' %}active{% endif %}" href="{{ url_for('advisor_page') }}">AI 顾问</a>
+          {% endif %}
+        </nav>
+        <div class="sys-user">
+          <span class="sys-user-name">{{ current_user.display_name or current_user.username }}</span>
+          <a class="sys-logout" href="{{ url_for('logout') }}">退出</a>
+        </div>
       </div>
-    </div>
-  </nav>
+    </header>
+    {% endif %}
 
-  <div class="container pb-5">
-    {% block content %}{% endblock %}
+    <main class="{% block main_class %}container-fluid sys-main{% endblock %}">
+      <div class="{% block content_wrap %}sys-content{% endblock %}">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    {% if current_user %}
+    <footer class="sys-footer">
+      <div class="sys-content sys-footer-inner">
+        <span>Financial Forecast</span>
+        <span>{% if is_enterprise %}运营工作台{% else %}客户市场端{% endif %}</span>
+      </div>
+    </footer>
+    {% endif %}
   </div>
 </body>
 </html>

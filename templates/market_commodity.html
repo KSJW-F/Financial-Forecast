@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ commodity or '品种' }} · 品种明细{% endblock %}
+{% block content %}
+<div class="sys-page-head">
+  <div>
+    <h1>{{ commodity or '选择品种' }}</h1>
+    <p>按日查看机构观点数量，并可打开原文核对依据。</p>
+  </div>
+  <div class="sys-page-actions">
+    <a class="btn-sys ghost" href="{{ url_for('market_home') }}">返回雷达</a>
+    {% if commodity %}
+    <a class="btn-sys" href="{{ url_for('charts', commodity=commodity, preset=filters.preset) }}">趋势图</a>
+    {% endif %}
+  </div>
+</div>
+
+<form class="toolbar" method="get">
+  <label>
+    <span>品种</span>
+    <select name="commodity" onchange="this.form.submit()">
+      {% for item in commodities %}
+      <option value="{{ item }}" {% if item == commodity %}selected{% endif %}>{{ item }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>区间</span>
+    <select name="preset" onchange="this.form.submit()">
+      <option value="" {% if not filters.preset %}selected{% endif %}>全部</option>
+      <option value="7d" {% if filters.preset == '7d' %}selected{% endif %}>近 7 日</option>
+      <option value="14d" {% if filters.preset == '14d' %}selected{% endif %}>近 14 日</option>
+      <option value="30d" {% if filters.preset == '30d' %}selected{% endif %}>近 30 日</option>
+    </select>
+  </label>
+  {% if day %}
+  <label>
+    <span>已选日期</span>
+    <span class="toolbar-chip">{{ day | format_date }}
+      <a href="{{ url_for('market_commodity', commodity=commodity, preset=filters.preset) }}">清除</a>
+    </span>
+  </label>
+  {% endif %}
+</form>
+
+{% if insight and insight.identified_reports > 0 %}
+<section class="kpi-strip compact" aria-label="品种指标">
+  <div class="kpi-item"><span class="kpi-label">档位</span><strong class="kpi-value sm">{{ stance }}</strong></div>
+  <div class="kpi-item"><span class="kpi-label">加权评分</span><strong class="kpi-value">{{ insight.weighted_score }}</strong></div>
+  <div class="kpi-item"><span class="kpi-label">有效观点</span><strong class="kpi-value">{{ insight.identified_reports }}</strong></div>
+  <div class="kpi-item"><span class="kpi-label">动量</span><strong class="kpi-value sm">{{ insight.momentum }}</strong></div>
+</section>
+{% endif %}
+
+<div class="sys-grid-side">
+  <section class="sys-block">
+    <header class="sys-block-head"><h2>按日热度</h2></header>
+    <div class="heat-list">
+      {% for d in daily %}
+      <a class="heat-row {% if day == d.publish_date %}is-active{% endif %}"
+         href="{{ url_for('market_commodity', commodity=commodity, day=d.publish_date, preset=filters.preset) }}">
+        <div class="heat-top">
+          <span class="mono">{{ d.publish_date | format_date }}</span>
+          <span>{{ d.report_count }} 篇</span>
+        </div>
+        <div class="heat-bar"><i style="width: {{ d.heat_pct }}%"></i></div>
+        <div class="heat-foot"><span class="trend-pill {{ d.trend_badge }}">{{ d.dominant_trend }}</span></div>
+      </a>
+      {% else %}
+      <p class="sys-empty">暂无按日统计。</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="sys-block">
+    <header class="sys-block-head">
+      <h2>{% if day %}{{ day | format_date }} 观点{% else %}近期观点{% endif %}</h2>
+      <span class="sys-muted">{{ reports|length }} 条</span>
+    </header>
+    <table class="sys-table">
+      <thead>
+        <tr><th>日期</th><th>机构</th><th>趋势</th><th>摘要</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for row in reports %}
+        <tr>
+          <td class="mono">{{ row.publish_date | format_date }}</td>
+          <td>{{ row.broker }}</td>
+          <td><span class="trend-pill {{ row.trend_badge }}">{{ row.trend }}</span></td>
+          <td class="sys-muted">{{ row.summary or row.title }}</td>
+          <td><a class="table-link" href="{{ url_for('article_detail', article_id=row.article_id) }}">原文</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="sys-empty">该区间暂无观点。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

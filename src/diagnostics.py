@@ -6,7 +6,7 @@ from pathlib import Path
 import config
 from src.extractors.html_recovery import is_broken_html
 from src.extractors.image_fetcher import find_main_content_images, is_valid_image, resolve_local_image_path
-from src.extractors.pdf_extractor import is_garbled_text
+from src.extractors.pdf_extractor import is_chart_heavy_pdf, is_garbled_text
 
 GENERIC_TITLES = {
     "浙商期货官网",
@@ -27,7 +27,9 @@ def classify_extraction_issue(
     if file_type == "html":
         html = html_raw
         if html is None and file_path.exists():
-            html = file_path.read_text(encoding="utf-8", errors="ignore")
+            from src.extractors.html_recovery import read_html_text
+
+            html = read_html_text(file_path)
 
         if html:
             if is_broken_html(html):
@@ -50,8 +52,13 @@ def classify_extraction_issue(
         if cleaned_len < 80 and html and find_main_content_images(html):
             return f"图片研报 OCR 未提取到正文：{rel_path}"
 
-    if file_type == "pdf" and is_garbled_text(raw_content or ""):
-        return f"PDF 字体编码异常（已尝试 OCR）：{rel_path}"
+    if file_type == "pdf":
+        if is_garbled_text(raw_content or ""):
+            return f"PDF 字体编码异常（已尝试 OCR）：{rel_path}"
+        if re.search(r"数据跟踪|库存周度|产业链追踪|盘面套利观察|基差及资金", title or ""):
+            return f"数据跟踪型报告（无观点句）：{rel_path}"
+        if is_chart_heavy_pdf(raw_content or ""):
+            return f"图表型早报（无可提取文字观点）：{rel_path}"
 
     if file_type in {"png", "jpg", "jpeg"} and len(raw_content or "") < 30:
         return f"图片 OCR 未提取到正文：{rel_path}"
@@ -70,6 +77,12 @@ def classify_unknown_reason(
         return extraction_issue
     if len(raw_content or "") < 30:
         return f"正文过短，无法识别观点：{_relative_path(file_path)}"
+    if file_type == "pdf" and re.search(
+        r"数据跟踪|库存周度|产业链追踪|盘面套利观察|基差及资金", title or ""
+    ):
+        return f"数据跟踪型报告（无观点句）：{_relative_path(file_path)}"
+    if file_type == "pdf" and is_chart_heavy_pdf(raw_content or ""):
+        return f"图表型早报（无可提取文字观点）：{_relative_path(file_path)}"
     return f"正文无明确趋势观点：{_relative_path(file_path)}"
 
 

@@ -53,7 +53,9 @@ def main() -> None:
                 title, raw_content, file_type = extract_article(file_path)
                 html_raw = None
                 if file_type == "html":
-                    html_raw = file_path.read_text(encoding="utf-8", errors="ignore")
+                    from src.extractors.html_recovery import read_html_text
+
+                    html_raw = read_html_text(file_path)
                 cleaned_content = clean_text(raw_content) or clean_text(title)
                 extraction_issue = classify_extraction_issue(
                     file_path,

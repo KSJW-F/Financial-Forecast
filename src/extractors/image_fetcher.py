@@ -101,12 +101,38 @@ def find_main_content_images(html: str) -> list[str]:
 
 
 def infer_site_base(html: str, src: str) -> str:
-    if "rdqh.com" in html or "rdqh.com" in src:
+    blob = f"{html} {src}".lower()
+    if "rdqh.com" in blob:
         return RDQH_BASE_URL
-    if "cnzsqh" in html.lower():
+    if "cnzsqh" in blob:
         return DEFAULT_BASE_URL
-    if "doto-futures.com" in html:
+    if "doto-futures.com" in blob:
         return "https://www.doto-futures.com"
+    if "dyqh.info" in blob or "大越期货" in html:
+        return "https://www.dyqh.info"
+    if "ciccwmf" in blob or "中金财富" in html:
+        return "https://www.ciccwmf.cn"
+    if "caqh" in blob or "长安期货" in html:
+        return "http://www.caqh.com"
+    if (
+        "hongyuanqh" in blob
+        or "hyqh" in blob
+        or "宏源期货" in html
+        or "swhygh" in blob
+    ):
+        return "http://www.hongyuanqh.com"
+    if "minfutures" in blob or "wkqh" in blob:
+        return "https://www.minfutures.com"
+    if "hlqhgs" in blob or "华龙期货" in html:
+        return "http://www.hlqhgs.com"
+    if "cdfco" in blob or "中衍期货" in html:
+        return "https://www.cdfco.com.cn"
+    if "xinhu" in blob or "新湖期货" in html:
+        return "https://www.xinhu.cn"
+    if "greendh" in blob or "格林大华" in html:
+        return "https://www.greendh.com"
+    if "mmbiz.qpic.cn" in blob:
+        return "https://mp.weixin.qq.com"
     if src.startswith(("http://", "https://")):
         parsed = urlparse(src)
         return f"{parsed.scheme}://{parsed.netloc}"
@@ -114,10 +140,12 @@ def infer_site_base(html: str, src: str) -> str:
 
 
 def resolve_local_image_path(html_path: Path, src: str) -> Path:
-    if src.startswith(("http://", "https://")):
+    # 站点相对路径（/download/...）在 Windows 上不能当绝对路径，否则会落到盘符根目录
+    if src.startswith(("http://", "https://")) or src.startswith("/"):
         cache_dir = html_path.parent / "_images"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        return cache_dir / Path(urlparse(src).path).name
+        name = Path(urlparse(src).path).name or Path(src).name
+        return cache_dir / name
     return (html_path.parent / src).resolve()
 
 

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}运营概览 · Financial Forecast{% endblock %}
+{% block content %}
+<div class="sys-page-head">
+  <div>
+    <h1>运营概览</h1>
+    <p>研报入库、识别状态与终端使用情况。</p>
+  </div>
+  <div class="sys-page-actions">
+    <a class="btn-sys" href="{{ url_for('upload_page') }}">上传研报</a>
+    <a class="btn-sys ghost" href="{{ url_for('index') }}">打开研报库</a>
+  </div>
+</div>
+
+<section class="kpi-strip" aria-label="业务指标">
+  <div class="kpi-item">
+    <span class="kpi-label">研报总量</span>
+    <strong class="kpi-value">{{ stats.articles }}</strong>
+  </div>
+  <div class="kpi-item">
+    <span class="kpi-label">已识别观点</span>
+    <strong class="kpi-value">{{ stats.identified }}</strong>
+  </div>
+  <div class="kpi-item warn">
+    <span class="kpi-label">待补全</span>
+    <strong class="kpi-value">{{ stats.unknown }}</strong>
+  </div>
+  <div class="kpi-item">
+    <span class="kpi-label">覆盖机构</span>
+    <strong class="kpi-value">{{ stats.brokers }}</strong>
+  </div>
+</section>
+
+<div class="sys-grid-2">
+  <section class="sys-block">
+    <header class="sys-block-head">
+      <h2>访问与登录</h2>
+      <span class="sys-muted">近 7 日活跃 {{ ops.active_users_7d }} 人 · 时间东八区</span>
+    </header>
+    <div class="metric-row">
+      <div><b>{{ ops.login_today }}</b><span>今日登录</span></div>
+      <div><b>{{ ops.login_7d }}</b><span>7 日登录</span></div>
+      <div><b>{{ ops.page_views_today }}</b><span>今日访问</span></div>
+      <div><b>{{ ops.total_users }}</b><span>系统账号</span></div>
+    </div>
+    {% if ops.recent_logins %}
+    <table class="sys-table">
+      <thead>
+        <tr><th>时间</th><th>账号</th><th>角色</th></tr>
+      </thead>
+      <tbody>
+        {% for row in ops.recent_logins[:8] %}
+        <tr>
+          <td class="mono">{{ row.created_at }}</td>
+          <td>{{ row.username }}</td>
+          <td><span class="tag-role {{ row.role }}">{{ '运营' if row.role == 'enterprise' else '客户' }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="sys-empty">暂无登录记录。</p>
+    {% endif %}
+  </section>
+
+  <section class="sys-block">
+    <header class="sys-block-head">
+      <h2>常用功能</h2>
+    </header>
+    <div class="link-list">
+      <a href="{{ url_for('index') }}"><span>研报库</span><em>筛选、分页、查看解析结果</em></a>
+      <a href="{{ url_for('insights') }}"><span>共识分析</span><em>时序评分与机构多空对照</em></a>
+      <a href="{{ url_for('upload_page') }}"><span>文件上传</span><em>HTML / PDF / 图片自动入库</em></a>
+      <a href="{{ url_for('charts') }}"><span>趋势质检</span><em>核对品种评分曲线</em></a>
+    </div>
+  </section>
+</div>
+
+<section class="sys-block mt-4">
+  <header class="sys-block-head">
+    <h2>最近研报</h2>
+    <a href="{{ url_for('index') }}">全部</a>
+  </header>
+  <table class="sys-table">
+    <thead>
+      <tr>
+        <th>日期</th><th>机构</th><th>标题</th><th>品种</th><th>趋势</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_rows %}
+      <tr>
+        <td class="mono">{{ row.publish_date | format_date }}</td>
+        <td>{{ row.broker }}</td>
+        <td><a class="table-link" href="{{ url_for('article_detail', article_id=row.id) }}">{{ row.title }}</a></td>
+        <td>{{ row.commodity }}</td>
+        <td><span class="trend-pill {{ row.trend_badge }}">{{ row.trend }}</span></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="sys-empty">暂无研报，请先上传或导入。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

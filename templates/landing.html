@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}登录 · Financial Forecast{% endblock %}
+{% block body_class %}page-landing{% endblock %}
+{% block main_class %}app-main app-main-flush{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <aside class="auth-brand">
+    <div class="auth-fx" aria-hidden="true">
+      <span class="auth-orb auth-orb-a"></span>
+      <span class="auth-orb auth-orb-b"></span>
+      <span class="auth-orb auth-orb-c"></span>
+      <span class="auth-grid"></span>
+      <span class="auth-sheen"></span>
+    </div>
+    <div class="auth-brand-inner">
+      <div class="auth-logo">
+        <span class="auth-logo-mark">FF</span>
+        <span class="auth-logo-name">Financial Forecast</span>
+      </div>
+      <h1 class="auth-title">机构研报智能分析平台</h1>
+      <p class="auth-desc">
+        面向研究运营与市场决策的统一入口：采集多机构日评，识别具体品种观点，沉淀可核对的共识信号。
+      </p>
+      <ul class="auth-points">
+        <li><strong>运营工作台</strong> — 研报入库、识别质检、共识分析</li>
+        <li><strong>客户市场端</strong> — 品种排名、热度明细、决策辅助</li>
+      </ul>
+      <p class="auth-foot">内部演示系统 · 请使用授权账号登录</p>
+    </div>
+  </aside>
+
+  <section class="auth-panel">
+    <div class="auth-panel-inner">
+      <h2 class="auth-panel-title">系统登录</h2>
+      <p class="auth-panel-sub">请选择身份后输入账号</p>
+
+      <div class="auth-tabs" id="portal-doors" role="tablist">
+        <button type="button" class="auth-tab {% if portal == 'enterprise' %}is-active{% endif %}" data-portal="enterprise" data-user="admin" data-pass="admin123" role="tab">
+          运营工作台
+          <small>研报与质检</small>
+        </button>
+        <button type="button" class="auth-tab {% if portal != 'enterprise' %}is-active{% endif %}" data-portal="client" data-user="guest" data-pass="guest123" role="tab">
+          客户市场端
+          <small>排名与明细</small>
+        </button>
+      </div>
+
+      <form class="auth-form" method="post" action="{{ url_for('login') }}" id="login-form">
+        <input type="hidden" name="portal" id="portal-field" value="{{ portal or 'enterprise' }}">
+        <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+        {% if error %}
+        <div class="auth-error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <label class="auth-label" for="username">账号</label>
+        <input class="auth-input" type="text" name="username" id="username" autocomplete="username" required>
+
+        <label class="auth-label" for="password">密码</label>
+        <input class="auth-input" type="password" name="password" id="password" autocomplete="current-password" required>
+
+        <div class="auth-actions">
+          <button class="auth-submit" type="submit" id="portal-label">
+            {% if portal == 'client' %}进入客户市场端{% else %}进入运营工作台{% endif %}
+          </button>
+          <button type="button" class="auth-demo" id="demo-fill">填入演示账号</button>
+        </div>
+        <p class="auth-hint">运营 <code>admin / admin123</code>　客户 <code>guest / guest123</code></p>
+      </form>
+    </div>
+  </section>
+</div>
+<script>
+(function () {
+  const tabs = document.querySelectorAll(".auth-tab");
+  const portalField = document.getElementById("portal-field");
+  const submitBtn = document.getElementById("portal-label");
+  const userEl = document.getElementById("username");
+  const passEl = document.getElementById("password");
+  const demoBtn = document.getElementById("demo-fill");
+  let active = document.querySelector(".auth-tab.is-active") || tabs[0];
+
+  function applyTab(tab) {
+    tabs.forEach((t) => t.classList.toggle("is-active", t === tab));
+    active = tab;
+    const portal = tab.dataset.portal || "enterprise";
+    portalField.value = portal;
+    submitBtn.textContent = portal === "enterprise" ? "进入运营工作台" : "进入客户市场端";
+  }
+
+  tabs.forEach((tab) => tab.addEventListener("click", () => applyTab(tab)));
+  demoBtn.addEventListener("click", () => {
+    if (!active) return;
+    userEl.value = active.dataset.user || "";
+    passEl.value = active.dataset.pass || "";
+    userEl.focus();
+  });
+})();
+</script>
+{% endblock %}

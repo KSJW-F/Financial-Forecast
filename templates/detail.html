@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ article.title }} - 研报详情{% endblock %}
 {% block content %}
-<p class="mb-3"><a class="back-link" href="{{ url_for('index') }}">&larr; 返回列表</a></p>
+{% set back_qs = back_params|default({}) %}
+<p class="mb-3">
+  <a class="back-link" href="{{ url_for('index', **back_qs) }}">&larr; 返回列表{% if back_qs.get('page') %}（第 {{ back_qs.get('page') }} 页）{% endif %}</a>
+</p>
 
 <div class="detail-grid">
   <div>

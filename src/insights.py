@@ -89,8 +89,23 @@ def apply_date_filter(query, date_from: str, date_to: str, column):
     return query
 
 
-def preset_date_range(preset: str) -> tuple[str, str]:
-    today = datetime.now().date()
+def parse_anchor_date(value: str | None):
+    """把 YYYYMMDD 解析为 date；无效则返回 None。"""
+    if not value or len(value) != 8 or not value.isdigit():
+        return None
+    try:
+        return datetime.strptime(value, "%Y%m%d").date()
+    except ValueError:
+        return None
+
+
+def preset_date_range(preset: str, anchor=None) -> tuple[str, str]:
+    """快捷区间相对「数据锚点日」计算。
+
+    演示库研报日期往往停在历史区间；若用系统今天会筛出空结果。
+    传入库内最新 publish_date 作为 anchor 即可对齐数据。
+    """
+    today = anchor or datetime.now().date()
     if preset == "7d":
         start = today - timedelta(days=6)
         return start.strftime("%Y%m%d"), today.strftime("%Y%m%d")
@@ -292,27 +307,52 @@ def _build_signal(
 ) -> tuple[str, str]:
     bullish_count = sum(distribution.get(key, 0) for key in BULLISH)
     bearish_count = sum(distribution.get(key, 0) for key in BEARISH)
-    total = sum(distribution.values())
+    neutral_count = sum(distribution.get(key, 0) for key in NEUTRAL)
+    total = max(sum(distribution.values()), 1)
+    directional = bullish_count + bearish_count
+    lean_ratio = abs(bullish_count - bearish_count) / max(directional, 1)
 
-    persistence_hint = f"且近 {persistence_days} 日方向延续" if persistence_days >= 3 else ""
+    persistence_hint = f"，近 {persistence_days} 日方向延续" if persistence_days >= 3 else ""
 
-    if avg_score >= 0.75 and consensus_pct >= 45:
+    # 强方向
+    if avg_score >= 0.55 and (bullish_count >= bearish_count or consensus_pct >= 40):
         return (
-            f"时序加权共识偏多（近期权重更高），{bullish_count}/{total} 家偏多/看涨{persistence_hint}，可考虑逢低布局。",
+            f"倾向偏多（加权评分 {avg_score:.2f}），多头 {bullish_count}/{total}"
+            f"{persistence_hint}。可考虑逢回落轻仓试多，设好止损。",
             "success",
         )
-    if avg_score <= -0.75 and consensus_pct >= 45:
+    if avg_score <= -0.55 and (bearish_count >= bullish_count or consensus_pct >= 40):
         return (
-            f"时序加权共识偏空（近期权重更高），{bearish_count}/{total} 家偏空/看跌{persistence_hint}，注意回调风险。",
+            f"倾向偏空（加权评分 {avg_score:.2f}），空头 {bearish_count}/{total}"
+            f"{persistence_hint}。注意下行风险，反弹宜谨慎，勿盲目追空。",
             "danger",
         )
-    if abs(avg_score) <= 0.25 and total >= 3:
+
+    # 中等方向：即使「震荡」票最多，评分已倾斜也要给倾向
+    if avg_score >= 0.2 or (avg_score >= 0.1 and bullish_count > bearish_count):
         return (
-            f"机构观点以震荡/中性为主，建议观望，等待方向明朗后再决策。",
+            f"震荡偏多（加权评分 {avg_score:.2f}，多 {bullish_count} / 空 {bearish_count} / 中性 {neutral_count}）。"
+            f"宜区间思路偏多侧：回调低吸、突破加仓，控制仓位。",
+            "success",
+        )
+    if avg_score <= -0.2 or (avg_score <= -0.1 and bearish_count > bullish_count):
+        return (
+            f"震荡偏空（加权评分 {avg_score:.2f}，多 {bullish_count} / 空 {bearish_count} / 中性 {neutral_count}）。"
+            f"宜区间思路偏空侧：反弹减仓或轻仓试空，避免左侧重仓抄底。",
+            "danger",
+        )
+
+    # 真正中性
+    if abs(avg_score) < 0.12 and neutral_count >= directional:
+        return (
+            f"多空接近均衡（评分 {avg_score:.2f}），机构以震荡为主。"
+            f"更适合高抛低吸或观望等待突破，而不是单边重仓。",
             "warning",
         )
+
     return (
-        f"机构分歧较大（最高共识仅 {consensus_pct}%），建议缩小仓位、分批观察，勿单一研报定方向。",
+        f"机构分歧仍在（最高共识 {consensus_pct}%，评分 {avg_score:.2f}）。"
+        f"建议轻仓、分批，按自身风险偏好选择偏多或偏空一侧试探。",
         "secondary",
     )
 

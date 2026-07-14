@@ -23,7 +23,7 @@ COMMODITY_ALIASES: dict[str, list[str]] = {
     "沪锌": ["沪锌", "锌", "ZN"],
     "沪镍": ["沪镍", "镍", "NI"],
     "沪锡": ["沪锡", "锡", "SN"],
-    "沪铅": ["沪铅", "铅", "PB"],
+    "沪锡": ["沪锡", "锡", "SN"],
     "原油": ["原油", "SC", "INE原油"],
     "燃油": ["燃油", "燃料油", "FU", "低硫燃料油", "高硫燃料油"],
     "沥青": ["沥青", "BU"],
@@ -41,6 +41,7 @@ COMMODITY_ALIASES: dict[str, list[str]] = {
     "棕榈油": ["棕榈油", "P"],
     "豆油": ["豆油", "Y"],
     "玉米": ["玉米", "C"],
+    "苹果": ["苹果", "AP"],
     "棉花": ["棉花", "CF"],
     "白糖": ["白糖", "SR"],
     "橡胶": ["橡胶", "沪胶", "RU", "20号胶", "NR"],
@@ -56,15 +57,25 @@ COMMODITY_ALIASES: dict[str, list[str]] = {
     "烧碱": ["烧碱", "SH"],
     "欧线": ["欧线", "EC"],
     "国债": ["国债", "30年国债", "10年国债", "TS", "TF", "T"],
-    "股指": ["股指", "沪深300", "上证50", "中证500", "中证1000", "IM", "IF", "IC", "IH"],
-    "股指期权": ["股指期权", "股票及股指期权", "ETF期权"],
-    "宏观": ["宏观", "宏观日报"],
-    "农产品": ["农产品", "农产品日报"],
-    "能源化工": ["能源化工"],
-    "有色金属": ["有色金属"],
-    "黑色": ["黑色", "煤焦钢矿"],
-    "油脂": ["油脂"],
-    "商品": ["商品"],
+    "沪深300": ["沪深300", "IF"],
+    "上证50": ["上证50", "IH"],
+    "中证500": ["中证500", "IC"],
+    "中证1000": ["中证1000", "IM"],
+}
+
+# 板块/主题日报，不是具体可交易品种 —— 不得进入雷达与筛选
+SECTOR_LABELS = {
+    "股指",
+    "股指期权",
+    "宏观",
+    "农产品",
+    "能源化工",
+    "有色金属",
+    "黑色",
+    "油脂",
+    "商品",
+    "煤焦钢矿",
+    "综合",
 }
 
 CANONICAL_COMMODITIES = set(COMMODITY_ALIASES.keys())
@@ -72,6 +83,7 @@ CANONICAL_COMMODITIES = set(COMMODITY_ALIASES.keys())
 NOISE_SUBSTRINGS = (
     "请关注", "本刊", "昨日", "今日", "主力合约", "合约", "基差", "指数",
     "免责声明", "日报202", "早评202", "官网", "期货有限", "研究", "报告",
+    "宏观", "黑色", "能源化工", "有色", "农产品日报",
 )
 
 INVALID_COMMODITY_RE = re.compile(
@@ -80,7 +92,9 @@ INVALID_COMMODITY_RE = re.compile(
 
 
 def is_valid_commodity(name: str) -> bool:
-    if not name or name == "综合":
+    if not name:
+        return False
+    if name in SECTOR_LABELS:
         return False
     if name in BROKER_NAMES:
         return False
@@ -118,8 +132,11 @@ def normalize_commodity(raw: str) -> str | None:
     if not text or text in BROKER_NAMES:
         return None
 
+    if text in SECTOR_LABELS:
+        return None
+
     matched = _match_alias(text)
-    if matched:
+    if matched and matched not in SECTOR_LABELS and is_valid_commodity(matched):
         return matched
 
     if is_valid_commodity(text):
@@ -143,12 +160,15 @@ def extract_commodity(title: str, content: str = "") -> str:
     if before_review:
         candidates.append(before_review.group(1))
 
-    if "股指期权" in title or "股票及股指期权" in title:
-        candidates.append("股指期权")
-    if "宏观" in title and "日报" in title:
-        candidates.append("宏观")
-    if "农产品" in title and "日报" in title:
-        candidates.append("农产品")
+    # 股指类：落到具体指数品种，不归入「股指」板块
+    if "沪深300" in title or re.search(r"\bIF\b", title):
+        candidates.append("沪深300")
+    if "上证50" in title or re.search(r"\bIH\b", title):
+        candidates.append("上证50")
+    if "中证500" in title or re.search(r"\bIC\b", title):
+        candidates.append("中证500")
+    if "中证1000" in title or re.search(r"\bIM\b", title):
+        candidates.append("中证1000")
 
     daily_tips = re.search(r"每日提示[—\-–]+([^（(\n]+)", title)
     if daily_tips:
@@ -165,7 +185,7 @@ def extract_commodity(title: str, content: str = "") -> str:
 
     for source in (title, content[:300]):
         matched = _match_alias(source)
-        if matched:
+        if matched and is_valid_commodity(matched):
             return matched
 
     return "综合"

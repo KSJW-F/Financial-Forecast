@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="page-hero mb-4">
+  <div>
+    <div class="eyebrow">Research Desk</div>
+    <h1 class="page-title">研报分析工作台</h1>
+    <p class="page-subtitle mb-0">多机构日评入库 · 规则/AI 观点抽取 · 可追溯未知原因</p>
+  </div>
+</div>
+
 <div class="stat-grid">
   <div class="stat-card">
     <div class="label">研报总数</div>
@@ -18,7 +26,7 @@
   </div>
   <div class="stat-card">
     <div class="label">AI 参与</div>
-    <div class="value" style="color:#1b6ca8">{{ stats.llm }}</div>
+    <div class="value" style="color:#0a4d68">{{ stats.llm }}</div>
     <div class="sub">文华接口补全</div>
   </div>
 </div>
@@ -100,7 +108,7 @@
       </thead>
       <tbody>
         {% for row in rows %}
-        <tr class="table-row-link" onclick="window.location='{{ url_for('article_detail', article_id=row.id) }}'">
+        <tr class="table-row-link" onclick="window.location='{{ url_for('article_detail', article_id=row.id) }}?{% if query_string %}{{ query_string }}&{% endif %}page={{ page }}'">
           <td class="text-muted">#{{ row.id }}</td>
           <td><strong>{{ row.broker }}</strong></td>
           <td class="text-truncate" style="max-width:240px" title="{{ row.title }}">{{ row.title }}</td>
@@ -124,37 +132,40 @@
     </table>
   </div>
   {% if total_pages > 1 %}
-  <div class="panel-body border-top">
-    <nav aria-label="分页" class="d-flex flex-wrap justify-content-center align-items-center gap-3">
-      <ul class="pagination pagination-sm mb-0 flex-wrap">
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page - 1 }}{% if query_string %}&{{ query_string }}{% endif %}">上一页</a>
-        </li>
+  <div class="panel-body border-top pager-bar">
+    <div class="pager-meta">
+      第 <strong>{{ page }}</strong> / {{ total_pages }} 页 · 共 {{ total }} 条
+    </div>
+    <nav aria-label="分页" class="pager-nav">
+      <a class="pager-btn {% if page <= 1 %}is-disabled{% endif %}"
+         href="{% if page > 1 %}?page={{ page - 1 }}{% if query_string %}&{{ query_string }}{% endif %}{% else %}#{% endif %}">上一页</a>
+
+      <div class="pager-pages">
         {% for p in page_range %}
           {% if p == '...' %}
-          <li class="page-item disabled"><span class="page-link">…</span></li>
+          <span class="pager-ellipsis">…</span>
           {% else %}
-          <li class="page-item {% if p == page %}active{% endif %}">
-            <a class="page-link" href="?page={{ p }}{% if query_string %}&{{ query_string }}{% endif %}">{{ p }}</a>
-          </li>
+          <a class="pager-num {% if p == page %}is-active{% endif %}"
+             href="?page={{ p }}{% if query_string %}&{{ query_string }}{% endif %}">{{ p }}</a>
           {% endif %}
         {% endfor %}
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-          <a class="page-link" href="?page={{ page + 1 }}{% if query_string %}&{{ query_string }}{% endif %}">下一页</a>
-        </li>
-      </ul>
-      <form class="page-jump-form d-flex align-items-center gap-2" method="get">
-        <span class="small text-muted text-nowrap">跳至</span>
-        <input type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
-               class="form-control form-control-sm" style="width:4.5rem" aria-label="页码">
-        <span class="small text-muted">/ {{ total_pages }}</span>
+      </div>
+
+      <a class="pager-btn {% if page >= total_pages %}is-disabled{% endif %}"
+         href="{% if page < total_pages %}?page={{ page + 1 }}{% if query_string %}&{{ query_string }}{% endif %}{% else %}#{% endif %}">下一页</a>
+
+      <form class="pager-jump" method="get">
+        <label class="pager-jump-label" for="pageJump">跳至</label>
+        <input id="pageJump" type="number" name="page" min="1" max="{{ total_pages }}" value="{{ page }}"
+               class="pager-jump-input" aria-label="页码">
+        <span class="pager-jump-total">/ {{ total_pages }}</span>
         {% if filters.broker %}<input type="hidden" name="broker" value="{{ filters.broker }}">{% endif %}
         {% if filters.commodity %}<input type="hidden" name="commodity" value="{{ filters.commodity }}">{% endif %}
         {% if filters.trend %}<input type="hidden" name="trend" value="{{ filters.trend }}">{% endif %}
         {% if filters.date_from_input %}<input type="hidden" name="date_from" value="{{ filters.date_from_input }}">{% endif %}
         {% if filters.date_to_input %}<input type="hidden" name="date_to" value="{{ filters.date_to_input }}">{% endif %}
         {% if filters.preset %}<input type="hidden" name="preset" value="{{ filters.preset }}">{% endif %}
-        <button type="submit" class="btn btn-sm btn-outline-primary">跳转</button>
+        <button type="submit" class="pager-jump-btn">Go</button>
       </form>
     </nav>
   </div>

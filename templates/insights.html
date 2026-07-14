@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 {% block title %}决策参考 · {{ commodity or '品种' }}{% endblock %}
 {% block content %}
+<div class="page-hero mb-4">
+  <div>
+    <div class="eyebrow">Decision Support</div>
+    <h1 class="page-title">决策参考 · 机构共识</h1>
+    <p class="page-subtitle mb-0">时序加权评分 · 多空机构对照 · 面向「接下来几天要不要买」</p>
+  </div>
+</div>
+
 <div class="panel mb-4">
   <div class="panel-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <strong>决策参考 · 机构共识</strong>
-    <span class="text-muted small">面向「接下来要不要买」：按品种 + 时间段汇总多机构观点</span>
+    <strong>筛选条件</strong>
+    <span class="text-muted small">默认全部数据，可按时间段收窄</span>
   </div>
   <div class="panel-body filter-bar">
     <form class="row g-3 align-items-end" method="get">

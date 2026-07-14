@@ -6,9 +6,10 @@ import warnings
 from pathlib import Path
 
 import config
+from src.analyzer.chart_analyzer import needs_chart_ai
 from src.analyzer.commodity import extract_commodity
-from src.analyzer.rule_analyzer import AnalysisResult
-from src.analyzer import analyze_with_llm, analyze_with_rules
+from src.analyzer.llm_analyzer import analyze_chart_with_llm, analyze_with_llm
+from src.analyzer.rule_analyzer import AnalysisResult, analyze_with_rules
 from src.cleaner import clean_text
 from src.diagnostics import classify_extraction_issue, classify_unknown_reason
 from src.extractors import extract_article
@@ -37,6 +38,33 @@ def parse_date_from_title(title: str) -> str | None:
     return None
 
 
+def _normalize_rule_results(title: str, content: str, results: list[AnalysisResult]) -> list[AnalysisResult]:
+    for item in results:
+        if item.commodity == "综合":
+            item.commodity = extract_commodity(title, content)
+    return results
+
+
+def _strong_results(results: list[AnalysisResult]) -> list[AnalysisResult]:
+    """规则里置信度中/高的明确观点，可直接采用，不必再调 LLM。"""
+    return [
+        item
+        for item in results
+        if item.trend != "未知" and item.confidence in {"高", "中"} and item.source == "rule"
+    ]
+
+
+def _weak_only(results: list[AnalysisResult]) -> bool:
+    """仅有低置信启发式结果时，开启 LLM 后应继续尝试 AI。"""
+    if not results:
+        return True
+    return all(
+        item.source == "chart-heuristic" or item.confidence == "低"
+        for item in results
+        if item.trend != "未知"
+    )
+
+
 def analyze_content(
     title: str,
     content: str,
@@ -46,23 +74,51 @@ def analyze_content(
     file_type: str = "",
     extraction_issue: str | None = None,
 ) -> list[AnalysisResult]:
+    """分层分析：强规则 →（可选）LLM → 图表启发式 → 未知。
+
+    - 规则命中明确观点句（偏多/操作建议等）时直接返回，省钱省时。
+    - 规则没有、或只有弱启发式时，再交给文华/OpenAI。
+    - LLM 失败则回退图表启发式或未知。
+    """
     llm_enabled = config.LLM_ENABLED if use_llm is None else use_llm
-    results = analyze_with_rules(title, content)
+    only_unknown = getattr(config, "LLM_ONLY_UNKNOWN", True)
 
-    if results:
-        for item in results:
-            if item.commodity == "综合":
-                item.commodity = extract_commodity(title, content)
-        return results
+    rule_results = _normalize_rule_results(title, content, analyze_with_rules(title, content))
+    strong = _strong_results(rule_results)
 
+    # 强规则（明确观点句）始终优先，不浪费 LLM
+    if strong:
+        return strong
+
+    chart_like = needs_chart_ai(title, content, file_type=file_type)
+    chart_results: list[AnalysisResult] = []
+    if chart_like:
+        # 图表通道内部：LLM → 启发式
+        chart_results = [
+            item
+            for item in analyze_chart_with_llm(title, content, use_llm=llm_enabled)
+            if item.trend != "未知"
+        ]
+        llm_chart = [item for item in chart_results if item.source == "llm"]
+        if llm_chart:
+            return llm_chart
+        # 无 LLM：直接用启发式；有 LLM 且结果偏弱：继续尝试正文 LLM 升级
+        if chart_results and (not llm_enabled or not _weak_only(chart_results)):
+            return chart_results
+
+    # 规则/图表都没有强结论时，用 LLM 补全
     if llm_enabled:
-        llm_results = analyze_with_llm(title, content)
-        valid_llm = [item for item in llm_results if item.trend != "未知"]
-        if valid_llm:
-            return valid_llm
-        retry_rules = analyze_with_rules(title, content)
-        if retry_rules:
-            return retry_rules
+        llm_results = [
+            item for item in analyze_with_llm(title, content) if item.trend != "未知"
+        ]
+        if llm_results:
+            return llm_results
+
+    # LLM 不可用/失败：弱图表启发式 → 任意规则结果
+    if chart_results:
+        return chart_results
+    if rule_results:
+        return rule_results
 
     unknown_reason = classify_unknown_reason(
         file_path or Path("."),
@@ -91,7 +147,9 @@ def process_file(file_path: Path, session, reprocess: bool = False) -> Article |
     title, raw_content, file_type = extract_article(file_path)
     html_raw = None
     if file_type == "html" and file_path.exists():
-        html_raw = file_path.read_text(encoding="utf-8", errors="ignore")
+        from src.extractors.html_recovery import read_html_text
+
+        html_raw = read_html_text(file_path)
     extraction_issue = classify_extraction_issue(
         file_path,
         file_type,

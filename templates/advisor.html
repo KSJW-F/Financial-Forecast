@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}AI 决策顾问 · Financial Forecast{% endblock %}
+{% block content %}
+<div class="page-hero mb-4">
+  <div>
+    <div class="eyebrow">Advisor</div>
+    <h1 class="page-title">AI 决策顾问</h1>
+    <p class="page-subtitle mb-0">
+      先检索库内机构共识与近期研报，再由大模型给出有依据的回答。
+      {% if llm_enabled %}当前引擎：{{ llm_provider }}{% else %}（LLM 未启用，将回退为数据摘录）{% endif %}
+    </p>
+  </div>
+</div>
+
+<div class="advisor-layout">
+  <aside class="panel advisor-side">
+    <div class="panel-header"><strong>上下文</strong></div>
+    <div class="panel-body">
+      <label class="form-label">关注品种（可选）</label>
+      <select class="form-select mb-3" id="commodity">
+        <option value="">自动从问题识别</option>
+        {% for item in commodities %}
+        <option value="{{ item }}" {% if commodity == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+      <label class="form-label">开始日期</label>
+      <input class="form-control mb-3" type="date" id="date_from">
+      <label class="form-label">结束日期</label>
+      <input class="form-control mb-3" type="date" id="date_to">
+      <p class="text-muted small mb-2">快捷提问</p>
+      <div class="advisor-prompts">
+        <button type="button" class="prompt-chip" data-q="螺纹钢近一周机构怎么看？要不要偏多？">螺纹近一周</button>
+        <button type="button" class="prompt-chip" data-q="黄金现在偏多还是偏空？依据是什么？">黄金方向</button>
+        <button type="button" class="prompt-chip" data-q="原油机构共识是否一致？风险点在哪？">原油共识</button>
+        <button type="button" class="prompt-chip" data-q="豆粕近期动量如何？适合观望吗？">豆粕动量</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="panel advisor-main">
+    <div class="panel-header d-flex justify-content-between align-items-center">
+      <strong>对话</strong>
+      <span class="text-muted small" id="detected-commodity"></span>
+    </div>
+    <div class="panel-body advisor-chat" id="chat-log">
+      <div class="chat-bubble bot">
+        你好。请直接问某个品种的趋势，例如「铁矿近 14 日机构共识如何？」。
+        我会先读系统里的评分与研报摘要，再作答。
+      </div>
+    </div>
+    <div class="advisor-composer">
+      <textarea id="question" rows="2" placeholder="输入你的问题…"></textarea>
+      <button class="btn btn-primary" type="button" id="send-btn">发送</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const log = document.getElementById("chat-log");
+  const questionEl = document.getElementById("question");
+  const sendBtn = document.getElementById("send-btn");
+  const commodityEl = document.getElementById("commodity");
+  const dateFromEl = document.getElementById("date_from");
+  const dateToEl = document.getElementById("date_to");
+  const detectedEl = document.getElementById("detected-commodity");
+
+  function stripMarkdown(text) {
+    return String(text || "")
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/__(.+?)__/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/^#{1,6}\s+/gm, "")
+      .replace(/\*\*/g, "")
+      .replace(/__/g, "")
+      .replace(/[（(]\s*(success|danger|warning|secondary|info|fallback|llm)\s*[)）]/gi, "")
+      .replace(/\b(success|danger|warning|secondary|info|fallback|llm)\b/gi, "")
+      .replace(/[。．]\s*[；;]\s*/g, "。")
+      .replace(/[；;]\s*动量\s*[：:]/g, "。动量：")
+      .trim();
+  }
+
+  function appendBubble(text, role) {
+    const div = document.createElement("div");
+    div.className = "chat-bubble " + role;
+    div.textContent = role.includes("bot") ? stripMarkdown(text) : text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function send() {
+    const question = questionEl.value.trim();
+    if (!question) return;
+    appendBubble(question, "user");
+    questionEl.value = "";
+    sendBtn.disabled = true;
+    appendBubble("正在检索库内数据并生成回答…", "bot pending");
+    const pending = log.querySelector(".chat-bubble.pending");
+    try {
+      const res = await fetch("{{ url_for('api_advisor_chat') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          commodity: commodityEl.value,
+          date_from: dateFromEl.value,
+          date_to: dateToEl.value,
+        }),
+      });
+      const data = await res.json();
+      if (pending) pending.remove();
+      detectedEl.textContent = data.commodity
+        ? `识别品种：${data.commodity} · 来源 ${data.source}`
+        : "";
+      appendBubble(data.answer || data.message || "无回答", "bot");
+    } catch (err) {
+      if (pending) pending.remove();
+      appendBubble("请求失败：" + err, "bot");
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener("click", send);
+  questionEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+  document.querySelectorAll(".prompt-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      questionEl.value = btn.dataset.q || "";
+      send();
+    });
+  });
+})();
+</script>
+{% endblock %}
